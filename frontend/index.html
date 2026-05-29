@@ -137,12 +137,121 @@
       transition: all 0.3s ease;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Detail Panel */
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 380px;
+      max-width: 90vw;
+      height: 100vh;
+      background: #fff;
+      box-shadow: -4px 0 32px rgba(74, 64, 54, 0.1);
+      z-index: 50;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .detail-panel.open { transform: translateX(0); }
+
+    .detail-header {
+      padding: 24px 24px 16px;
+      border-bottom: 1px solid #f0ebe5;
+    }
+    .detail-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #4a4036;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .detail-header .parent-tag {
+      font-size: 12px;
+      color: #a09488;
+      background: #faf8f5;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    .detail-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: #faf8f5;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      color: #8a7e72;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .detail-close:hover { background: #f0ebe5; color: #4a4036; }
+
+    .detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+    .detail-section {
+      margin-bottom: 24px;
+    }
+    .detail-section h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #a09488;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    .detail-section p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #4a4036;
+    }
+    .detail-section ul {
+      list-style: none;
+      padding: 0;
+    }
+    .detail-section li {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #4a4036;
+      padding: 6px 0 6px 20px;
+      position: relative;
+    }
+    .detail-section li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 14px;
+      width: 6px;
+      height: 6px;
+      background: #ffcc80;
+      border-radius: 50%;
+    }
+    .detail-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 40px;
+      color: #a09488;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div class="ui-overlay">
     <div class="brand">Learnable</div>
-    <div class="subtitle">点击知识点，探索无限关联</div>
+    <div class="subtitle">单击展开知识树 · 双击查看详情</div>
     <div class="search-box">
       <input type="text" id="topicInput" placeholder="输入一个主题，比如“机器学习”..." value="机器学习">
       <button class="btn btn-primary" id="startBtn">开始学习</button>
@@ -154,15 +263,31 @@
     <span>正在生成知识点...</span>
   </div>
 
-  <div class="hint" id="hint">滚轮缩放 · 拖拽移动 · 点击节点展开</div>
+  <div class="hint" id="hint">滚轮缩放 · 拖拽移动 · 单击展开子节点 · 双击查看详情</div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- Detail Panel -->
+  <div class="detail-panel" id="detailPanel">
+    <button class="detail-close" id="detailClose">×</button>
+    <div class="detail-header">
+      <h2 id="detailTitle">节点标题</h2>
+      <span class="parent-tag" id="detailParent">属于：根节点</span>
+    </div>
+    <div class="detail-body" id="detailBody">
+      <div class="detail-loading">
+        <div class="spinner"></div>
+        <span>加载中...</span>
+      </div>
+    </div>
+  </div>
 
   <canvas id="canvas"></canvas>
 
   <script>
     // ============================================================
     // Learnable Frontend — Infinite Canvas Knowledge Tree
+    // v0.2: click-to-expand, double-click-for-detail, concurrent detail loading
     // ============================================================
 
     const canvas = document.getElementById('canvas');
@@ -170,19 +295,23 @@
     const loadingEl = document.getElementById('loading');
     const toastEl = document.getElementById('toast');
     const hintEl = document.getElementById('hint');
+    const detailPanel = document.getElementById('detailPanel');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailParent = document.getElementById('detailParent');
+    const detailBody = document.getElementById('detailBody');
+    const detailClose = document.getElementById('detailClose');
 
-    // API endpoint (same origin for static hosting, or adjust for dev)
     const API_BASE = window.location.origin.includes('localhost')
       ? 'http://localhost:8080'
       : '';
 
-    // Colors
     const COLORS = {
       bg: '#faf8f5',
       nodeBg: '#fff9f0',
       nodeBorder: '#e8d5c4',
       nodeBorderHover: '#ffcc80',
       nodeBorderActive: '#ffb74d',
+      nodeBorderDetailLoaded: '#81c784',
       text: '#4a4036',
       textSecondary: '#8a7e72',
       edge: '#d4c4b0',
@@ -190,31 +319,22 @@
       shadow: 'rgba(74, 64, 54, 0.08)',
     };
 
-    // Camera (view transform)
-    const camera = {
-      x: 0,
-      y: 0,
-      zoom: 1,
-      targetZoom: 1,
-      targetX: 0,
-      targetY: 0,
-    };
-
-    // State
+    const camera = { x: 0, y: 0, zoom: 1, targetZoom: 1, targetX: 0, targetY: 0 };
     const nodes = new Map();
     const edges = [];
     let hoveredNode = null;
+    let selectedNode = null;
     let isDragging = false;
     let dragStart = { x: 0, y: 0 };
     let lastMouse = { x: 0, y: 0 };
     let animating = false;
+    let detailOpen = false;
 
-    // Node class
+    // Node class with detail support
     class Node {
       constructor(id, label, x, y, parentId = null) {
         this.id = id;
         this.label = label;
-        this.description = '';
         this.x = x;
         this.y = y;
         this.targetX = x;
@@ -230,11 +350,15 @@
         this.scale = 0.5;
         this.targetScale = 1;
         this.level = parentId ? (nodes.get(parentId)?.level || 0) + 1 : 0;
-        this.hue = (this.level * 35) % 360;
+
+        // Detail fields
+        this.detail = null;           // { definition, key_points, example }
+        this.detailLoaded = false;
+        this.detailLoading = false;
       }
 
       measure(ctx) {
-        ctx.font = `14px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.font = `600 14px -apple-system, BlinkMacSystemFont, sans-serif`;
         const lines = this.wrapText(ctx, this.label, 180);
         this.width = Math.min(Math.max(...lines.map(l => ctx.measureText(l).width)) + 32, 220);
         this.height = lines.length * 22 + 24;
@@ -242,14 +366,14 @@
       }
 
       wrapText(ctx, text, maxWidth) {
-        const words = text.split('');
+        const chars = text.split('');
         const lines = [];
         let line = '';
-        for (const word of words) {
-          const test = line + word;
+        for (const ch of chars) {
+          const test = line + ch;
           if (ctx.measureText(test).width > maxWidth && line) {
             lines.push(line);
-            line = word;
+            line = ch;
           } else {
             line = test;
           }
@@ -277,10 +401,8 @@
     function calculateRadialLayout(parentNode, childCount, radius = 180) {
       const results = [];
       if (childCount === 0) return results;
-
       const angleSpan = Math.min(Math.PI * 1.2, Math.PI * 2 * childCount / 8);
       const startAngle = -Math.PI / 2 - angleSpan / 2;
-
       for (let i = 0; i < childCount; i++) {
         const angle = startAngle + (angleSpan / Math.max(childCount - 1, 1)) * i;
         results.push({
@@ -294,13 +416,10 @@
     // Animation loop
     function animate() {
       let needsUpdate = false;
-
-      // Camera smooth zoom/pan
       camera.zoom += (camera.targetZoom - camera.zoom) * 0.1;
       camera.x += (camera.targetX - camera.x) * 0.1;
       camera.y += (camera.targetY - camera.y) * 0.1;
 
-      // Node animations
       for (const node of nodes.values()) {
         if (Math.abs(node.x - node.targetX) > 0.5) {
           node.x += (node.targetX - node.x) * 0.12;
@@ -339,28 +458,15 @@
     function render() {
       const w = canvas.width = window.innerWidth;
       const h = canvas.height = window.innerHeight;
-
       ctx.clearRect(0, 0, w, h);
       ctx.fillStyle = COLORS.bg;
       ctx.fillRect(0, 0, w, h);
-
       ctx.save();
       ctx.translate(w / 2 + camera.x, h / 2 + camera.y);
       ctx.scale(camera.zoom, camera.zoom);
-
-      // Grid (subtle)
       drawGrid(ctx, w, h);
-
-      // Edges
-      for (const edge of edges) {
-        drawEdge(ctx, edge);
-      }
-
-      // Nodes
-      for (const node of nodes.values()) {
-        drawNode(ctx, node);
-      }
-
+      for (const edge of edges) drawEdge(ctx, edge);
+      for (const node of nodes.values()) drawNode(ctx, node);
       ctx.restore();
     }
 
@@ -368,22 +474,14 @@
       const step = 40;
       const offsetX = (camera.x + w / 2) % step;
       const offsetY = (camera.y + h / 2) % step;
-
       ctx.save();
       ctx.strokeStyle = 'rgba(212, 196, 176, 0.15)';
       ctx.lineWidth = 1;
-
       for (let x = -w / 2 - offsetX; x < w / 2; x += step) {
-        ctx.beginPath();
-        ctx.moveTo(x, -h / 2);
-        ctx.lineTo(x, h / 2);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, -h / 2); ctx.lineTo(x, h / 2); ctx.stroke();
       }
       for (let y = -h / 2 - offsetY; y < h / 2; y += step) {
-        ctx.beginPath();
-        ctx.moveTo(-w / 2, y);
-        ctx.lineTo(w / 2, y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-w / 2, y); ctx.lineTo(w / 2, y); ctx.stroke();
       }
       ctx.restore();
     }
@@ -392,21 +490,17 @@
       const from = nodes.get(edge.from);
       const to = nodes.get(edge.to);
       if (!from || !to) return;
-
       const opacity = Math.min(from.opacity, to.opacity);
       if (opacity < 0.01) return;
-
       ctx.save();
       ctx.globalAlpha = opacity;
-      ctx.strokeStyle = edge.from === hoveredNode?.id || edge.to === hoveredNode?.id ? COLORS.edgeActive : COLORS.edge;
-      ctx.lineWidth = edge.from === hoveredNode?.id || edge.to === hoveredNode?.id ? 2.5 : 1.5;
-
-      // Bezier curve
+      const active = edge.from === hoveredNode?.id || edge.to === hoveredNode?.id;
+      ctx.strokeStyle = active ? COLORS.edgeActive : COLORS.edge;
+      ctx.lineWidth = active ? 2.5 : 1.5;
       const dx = to.x - from.x;
       const dy = to.y - from.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const cpOffset = dist * 0.3;
-
       ctx.beginPath();
       ctx.moveTo(from.x, from.y + from.height / 2);
       ctx.bezierCurveTo(
@@ -415,34 +509,17 @@
         to.x, to.y - to.height / 2
       );
       ctx.stroke();
-
-      // Arrow head
-      const angle = Math.atan2(to.y - from.y, to.x - from.x);
-      ctx.fillStyle = ctx.strokeStyle;
-      ctx.beginPath();
-      ctx.moveTo(to.x, to.y - to.height / 2);
-      ctx.lineTo(to.x - 6 * Math.cos(angle - 0.5), to.y - to.height / 2 - 6 * Math.sin(angle - 0.5));
-      ctx.lineTo(to.x - 6 * Math.cos(angle + 0.5), to.y - to.height / 2 - 6 * Math.sin(angle + 0.5));
-      ctx.closePath();
-      ctx.fill();
-
       ctx.restore();
     }
 
     function drawNode(ctx, node) {
       if (node.opacity < 0.01) return;
-
       node.measure(ctx);
       const bounds = node.getBounds();
-
       ctx.save();
       ctx.globalAlpha = node.opacity;
-
-      const cx = node.x;
-      const cy = node.y;
-      const sx = node.scale;
-      const sy = node.scale;
-
+      const cx = node.x, cy = node.y;
+      const sx = node.scale, sy = node.scale;
       ctx.translate(cx, cy);
       ctx.scale(sx, sy);
       ctx.translate(-cx, -cy);
@@ -451,20 +528,20 @@
       ctx.shadowColor = COLORS.shadow;
       ctx.shadowBlur = 12;
       ctx.shadowOffsetY = 4;
-
-      // Background
-      const isHovered = node === hoveredNode;
-      const isExpanded = node.expanded;
-
       ctx.fillStyle = COLORS.nodeBg;
       roundRect(ctx, bounds.left, bounds.top, node.width, node.height, 12);
       ctx.fill();
-
       ctx.shadowColor = 'transparent';
 
-      // Border
-      ctx.strokeStyle = isExpanded ? COLORS.nodeBorderActive : (isHovered ? COLORS.nodeBorderHover : COLORS.nodeBorder);
-      ctx.lineWidth = isHovered || isExpanded ? 2 : 1.5;
+      // Border color
+      const isHovered = node === hoveredNode;
+      const isSelected = node === selectedNode;
+      let borderColor = COLORS.nodeBorder;
+      if (node.detailLoaded) borderColor = COLORS.nodeBorderDetailLoaded;
+      if (isHovered) borderColor = COLORS.nodeBorderHover;
+      if (isSelected) borderColor = COLORS.nodeBorderActive;
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = (isHovered || isSelected) ? 2.5 : 1.5;
       roundRect(ctx, bounds.left, bounds.top, node.width, node.height, 12);
       ctx.stroke();
 
@@ -473,33 +550,36 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = `600 14px -apple-system, BlinkMacSystemFont, sans-serif`;
-
       const lineHeight = 22;
       const startY = node.y - (node.lines.length - 1) * lineHeight / 2;
-
       for (let i = 0; i < node.lines.length; i++) {
         ctx.fillText(node.lines[i], node.x, startY + i * lineHeight);
       }
 
-      // Expand indicator (dot)
-      if (!node.expanded && !node.expanding) {
-        ctx.fillStyle = '#ffcc80';
+      // Detail loaded indicator (small green dot)
+      if (node.detailLoaded) {
+        ctx.fillStyle = '#81c784';
         ctx.beginPath();
-        ctx.arc(node.x + node.width / 2 - 8, node.y + node.height / 2 - 8, 4, 0, Math.PI * 2);
+        ctx.arc(node.x + node.width / 2 - 6, node.y - node.height / 2 + 6, 3, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Description tooltip on hover
-      if (isHovered && node.description) {
-        ctx.fillStyle = 'rgba(74, 64, 54, 0.85)';
-        const descWidth = Math.min(ctx.measureText(node.description).width + 20, 260);
-        const descHeight = 30;
-        roundRect(ctx, node.x - descWidth / 2, bounds.top - descHeight - 8, descWidth, descHeight, 6);
-        ctx.fill();
+      // Detail loading indicator (small spinner)
+      if (node.detailLoading) {
+        ctx.strokeStyle = '#ffcc80';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const angle = Date.now() / 200;
+        ctx.arc(node.x + node.width / 2 - 6, node.y - node.height / 2 + 6, 3, angle, angle + 1.5);
+        ctx.stroke();
+      }
 
-        ctx.fillStyle = '#fff';
-        ctx.font = '12px sans-serif';
-        ctx.fillText(node.description, node.x, bounds.top - descHeight / 2 - 8);
+      // Expand indicator (orange dot for expandable)
+      if (!node.expanded && !node.expanding && !node.detailLoading) {
+        ctx.fillStyle = '#ffcc80';
+        ctx.beginPath();
+        ctx.arc(node.x + node.width / 2 - 6, node.y + node.height / 2 - 6, 4, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       ctx.restore();
@@ -521,25 +601,36 @@
 
     // Input handling
     function screenToWorld(sx, sy) {
-      const w = canvas.width;
-      const h = canvas.height;
+      const w = canvas.width, h = canvas.height;
       return {
         x: (sx - w / 2 - camera.x) / camera.zoom,
         y: (sy - h / 2 - camera.y) / camera.zoom,
       };
     }
 
+    // Click = expand
+    canvas.addEventListener('click', e => {
+      if (isDragging) return;
+      const world = screenToWorld(e.clientX, e.clientY);
+      const clicked = findNodeAt(world.x, world.y);
+      if (clicked && !clicked.expanded && !clicked.expanding) {
+        expandNode(clicked);
+      }
+    });
+
+    // Double click = show detail
+    canvas.addEventListener('dblclick', e => {
+      const world = screenToWorld(e.clientX, e.clientY);
+      const clicked = findNodeAt(world.x, world.y);
+      if (clicked) {
+        showDetail(clicked);
+      }
+    });
+
     canvas.addEventListener('mousedown', e => {
       const world = screenToWorld(e.clientX, e.clientY);
       const clicked = findNodeAt(world.x, world.y);
-
-      if (clicked) {
-        if (!clicked.expanded && !clicked.expanding) {
-          expandNode(clicked);
-        }
-        return;
-      }
-
+      if (clicked) return;
       isDragging = true;
       dragStart = { x: e.clientX, y: e.clientY };
       lastMouse = { x: e.clientX, y: e.clientY };
@@ -549,7 +640,6 @@
       const world = screenToWorld(e.clientX, e.clientY);
       hoveredNode = findNodeAt(world.x, world.y);
       canvas.style.cursor = hoveredNode ? 'pointer' : (isDragging ? 'grabbing' : 'grab');
-
       if (isDragging) {
         const dx = e.clientX - lastMouse.x;
         const dy = e.clientY - lastMouse.y;
@@ -558,16 +648,10 @@
         startAnimation();
       }
       lastMouse = { x: e.clientX, y: e.clientY };
-
-      if (hoveredNode) {
-        render();
-      }
+      if (hoveredNode) render();
     });
 
-    canvas.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
-
+    canvas.addEventListener('mouseup', () => { isDragging = false; });
     canvas.addEventListener('wheel', e => {
       e.preventDefault();
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
@@ -577,95 +661,229 @@
 
     function findNodeAt(x, y) {
       for (const node of nodes.values()) {
-        if (node.contains(x, y) && node.opacity > 0.5) {
-          return node;
-        }
+        if (node.contains(x, y) && node.opacity > 0.5) return node;
       }
       return null;
     }
 
-    // Expansion logic
+    // Expansion logic: 1 LLM call for items, then concurrent detail calls
     async function expandNode(parentNode) {
       if (parentNode.expanding || parentNode.expanded) return;
       parentNode.expanding = true;
       showLoading(true);
 
       try {
+        // Step 1: Get item list
         const res = await fetch(`${API_BASE}/api/expand`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ topic: parentNode.label, language: 'zh' }),
         });
-
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        const items = data.items || [];
 
-        const childNodes = data.nodes || [];
-        const positions = calculateRadialLayout(parentNode, childNodes.length);
+        // Step 2: Create child nodes immediately (with positions)
+        const positions = calculateRadialLayout(parentNode, items.length);
+        const childIds = [];
 
-        for (let i = 0; i < childNodes.length; i++) {
-          const cn = childNodes[i];
-          const id = `${parentNode.id}-${cn.id}`;
-
-          const node = new Node(id, cn.label, parentNode.x, parentNode.y, parentNode.id);
-          node.description = cn.description || '';
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const id = `${parentNode.id}-${item.id || i}`;
+          const node = new Node(id, item.label, parentNode.x, parentNode.y, parentNode.id);
           node.targetX = positions[i].x;
           node.targetY = positions[i].y;
           node.opacity = 0;
           node.targetOpacity = 1;
           node.scale = 0.3;
           node.targetScale = 1;
-
           nodes.set(id, node);
           edges.push({ from: parentNode.id, to: id });
           parentNode.children.push(id);
+          childIds.push(id);
         }
 
         parentNode.expanded = true;
-        showToast(`已展开 "${parentNode.label}" 的 ${childNodes.length} 个子知识点`);
+        showLoading(false);
         startAnimation();
+        showToast(`已展开 "${parentNode.label}" 的 ${items.length} 个子知识点，正在并发加载详情...`);
+
+        // Step 3: Concurrent detail loading for each child
+        const detailPromises = childIds.map(async (childId, idx) => {
+          const childNode = nodes.get(childId);
+          if (!childNode) return;
+          childNode.detailLoading = true;
+          startAnimation(); // trigger spinner render
+
+          try {
+            const detailRes = await fetch(`${API_BASE}/api/detail`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                topic: childNode.label,
+                parent: parentNode.label,
+                language: 'zh',
+              }),
+            });
+            if (!detailRes.ok) throw new Error(`detail HTTP ${detailRes.status}`);
+            const detailData = await detailRes.json();
+            childNode.detail = {
+              definition: detailData.definition,
+              key_points: detailData.key_points,
+              example: detailData.example,
+            };
+            childNode.detailLoaded = true;
+          } catch (err) {
+            console.error('Detail load failed for', childNode.label, err);
+            childNode.detail = {
+              definition: `${childNode.label}是${parentNode.label}的重要组成部分。`,
+              key_points: ['核心原理', '实际应用', '发展趋势'],
+              example: `例如，在${parentNode.label}领域中${childNode.label}被广泛应用。`,
+            };
+            childNode.detailLoaded = true;
+          } finally {
+            childNode.detailLoading = false;
+          }
+        });
+
+        await Promise.all(detailPromises);
+        showToast(`已加载 ${items.length} 个知识点的详情，双击查看`);
+        render();
 
       } catch (err) {
         console.error('Expand failed:', err);
         showToast('展开失败，使用本地模拟数据');
-
-        // Fallback mock data
-        const mockChildren = [
-          { id: '1', label: `${parentNode.label} 基础`, description: '核心概念与原理' },
-          { id: '2', label: `${parentNode.label} 应用`, description: '实际案例与场景' },
-          { id: '3', label: `${parentNode.label} 进阶`, description: '高级技巧与优化' },
-        ];
-        const positions = calculateRadialLayout(parentNode, mockChildren.length);
-
-        for (let i = 0; i < mockChildren.length; i++) {
-          const cn = mockChildren[i];
-          const id = `${parentNode.id}-mock-${cn.id}`;
-          const node = new Node(id, cn.label, parentNode.x, parentNode.y, parentNode.id);
-          node.description = cn.description;
-          node.targetX = positions[i].x;
-          node.targetY = positions[i].y;
-          node.opacity = 0;
-          node.targetOpacity = 1;
-          node.scale = 0.3;
-          node.targetScale = 1;
-          nodes.set(id, node);
-          edges.push({ from: parentNode.id, to: id });
-          parentNode.children.push(id);
-        }
-
-        parentNode.expanded = true;
-        startAnimation();
+        _mockExpand(parentNode);
       } finally {
         parentNode.expanding = false;
         showLoading(false);
       }
     }
 
+    function _mockExpand(parentNode) {
+      const mockItems = [
+        { id: '1', label: `${parentNode.label} 基础` },
+        { id: '2', label: `${parentNode.label} 应用` },
+        { id: '3', label: `${parentNode.label} 进阶` },
+      ];
+      const positions = calculateRadialLayout(parentNode, mockItems.length);
+      for (let i = 0; i < mockItems.length; i++) {
+        const id = `${parentNode.id}-mock-${mockItems[i].id}`;
+        const node = new Node(id, mockItems[i].label, parentNode.x, parentNode.y, parentNode.id);
+        node.targetX = positions[i].x;
+        node.targetY = positions[i].y;
+        node.opacity = 0; node.targetOpacity = 1;
+        node.scale = 0.3; node.targetScale = 1;
+        node.detail = {
+          definition: `${mockItems[i].label}是${parentNode.label}的重要组成部分。`,
+          key_points: ['核心原理', '实际应用', '发展趋势'],
+          example: `例如，在${parentNode.label}领域中${mockItems[i].label}被广泛应用。`,
+        };
+        node.detailLoaded = true;
+        nodes.set(id, node);
+        edges.push({ from: parentNode.id, to: id });
+        parentNode.children.push(id);
+      }
+      parentNode.expanded = true;
+      startAnimation();
+    }
+
+    // Detail panel
+    function showDetail(node) {
+      selectedNode = node;
+      detailOpen = true;
+      detailPanel.classList.add('open');
+      detailTitle.textContent = node.label;
+      detailParent.textContent = `属于：${node.parentId ? nodes.get(node.parentId)?.label || '未知' : '根节点'}`;
+
+      if (node.detailLoaded && node.detail) {
+        renderDetailBody(node.detail);
+      } else if (!node.detailLoading) {
+        detailBody.innerHTML = '<div class="detail-loading"><div class="spinner"></div><span>加载中...</span></div>';
+        // Lazy load detail if not loaded
+        loadDetailLazy(node);
+      } else {
+        detailBody.innerHTML = '<div class="detail-loading"><div class="spinner"></div><span>加载中...</span></div>';
+      }
+      render();
+    }
+
+    async function loadDetailLazy(node) {
+      if (node.detailLoading || node.detailLoaded) return;
+      node.detailLoading = true;
+      render();
+
+      try {
+        const res = await fetch(`${API_BASE}/api/detail`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: node.label,
+            parent: node.parentId ? nodes.get(node.parentId)?.label || '' : '',
+            language: 'zh',
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        node.detail = {
+          definition: data.definition,
+          key_points: data.key_points,
+          example: data.example,
+        };
+        node.detailLoaded = true;
+        if (selectedNode === node) {
+          renderDetailBody(node.detail);
+        }
+      } catch (err) {
+        node.detail = {
+          definition: `${node.label}是一个重要的知识概念。`,
+          key_points: ['核心原理', '实际应用', '发展趋势'],
+          example: `例如，在实际项目中运用${node.label}解决了复杂问题。`,
+        };
+        node.detailLoaded = true;
+        if (selectedNode === node) {
+          renderDetailBody(node.detail);
+        }
+      } finally {
+        node.detailLoading = false;
+        render();
+      }
+    }
+
+    function renderDetailBody(detail) {
+      const kpList = detail.key_points?.map(kp => `<li>${kp}</li>`).join('') || '';
+      detailBody.innerHTML = `
+        <div class="detail-section">
+          <h3>定义</h3>
+          <p>${detail.definition || '暂无定义'}</p>
+        </div>
+        <div class="detail-section">
+          <h3>核心要点</h3>
+          <ul>${kpList || '<li>暂无要点</li>'}</ul>
+        </div>
+        <div class="detail-section">
+          <h3>实际案例</h3>
+          <p>${detail.example || '暂无案例'}</p>
+        </div>
+      `;
+    }
+
+    function closeDetail() {
+      detailOpen = false;
+      selectedNode = null;
+      detailPanel.classList.remove('open');
+      render();
+    }
+
+    detailClose.addEventListener('click', closeDetail);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && detailOpen) closeDetail();
+    });
+
     // UI helpers
     function showLoading(show) {
       loadingEl.classList.toggle('active', show);
     }
-
     function showToast(msg) {
       toastEl.textContent = msg;
       toastEl.classList.add('show');
@@ -676,47 +894,30 @@
     function initRoot(topic) {
       nodes.clear();
       edges.length = 0;
-
+      closeDetail();
       const root = new Node('root', topic, 0, 0);
-      root.opacity = 1;
-      root.scale = 1;
-      root.targetOpacity = 1;
-      root.targetScale = 1;
+      root.opacity = 1; root.scale = 1;
+      root.targetOpacity = 1; root.targetScale = 1;
       nodes.set('root', root);
-
-      camera.targetX = 0;
-      camera.targetY = 0;
-      camera.targetZoom = 1;
-
-      render();
-      startAnimation();
-
-      // Auto-expand root after a short delay
+      camera.targetX = 0; camera.targetY = 0; camera.targetZoom = 1;
+      render(); startAnimation();
       setTimeout(() => expandNode(root), 600);
     }
 
-    // Start button
     document.getElementById('startBtn').addEventListener('click', () => {
       const topic = document.getElementById('topicInput').value.trim();
       if (!topic) return;
       initRoot(topic);
-      hintEl.textContent = `滚轮缩放 · 拖拽移动 · 点击节点展开 | 当前主题: ${topic}`;
+      hintEl.textContent = `滚轮缩放 · 拖拽移动 · 单击展开 · 双击详情 | 当前: ${topic}`;
     });
-
     document.getElementById('topicInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        document.getElementById('startBtn').click();
-      }
+      if (e.key === 'Enter') document.getElementById('startBtn').click();
     });
-
-    // Window resize
-    window.addEventListener('resize', () => {
-      render();
-    });
+    window.addEventListener('resize', () => render());
 
     // Initial render
     render();
-    showToast('💡 输入主题后点击"开始学习"，点击节点探索更多');
+    showToast('💡 输入主题后点击"开始学习"，单击节点展开，双击查看详情');
   </script>
 </body>
 </html>

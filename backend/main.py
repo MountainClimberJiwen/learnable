@@ -3,7 +3,8 @@
 Learnable Backend — AI-powered knowledge tree expansion API.
 
 Endpoints:
-  POST /api/expand    →  Expand a topic into sub-topics via Kimi LLM
+  POST /api/expand    →  Expand a topic into sub-topic labels (list only)
+  POST /api/detail    →  Get detailed content for a single sub-topic
   GET  /api/health    →  Health check
 """
 
@@ -27,7 +28,7 @@ if env_path.exists():
 KIMI_API_KEY = os.environ.get("KIMI_API_KEY", "")
 KIMI_BASE_URL = os.environ.get("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
 
-app = FastAPI(title="Learnable", version="0.1.0")
+app = FastAPI(title="Learnable", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,19 +45,26 @@ app.add_middleware(
 
 class ExpandRequest(BaseModel):
     topic: str = Field(..., min_length=1, max_length=200)
-    depth: int = Field(1, ge=1, le=5)
     language: str = Field("zh", pattern="^(zh|en)$")
-
-
-class KnowledgeNode(BaseModel):
-    id: str
-    label: str
-    description: str = ""
 
 
 class ExpandResponse(BaseModel):
     parent: str
-    nodes: list[KnowledgeNode]
+    items: list[dict]
+
+
+class DetailRequest(BaseModel):
+    topic: str = Field(..., min_length=1, max_length=200)
+    parent: str = Field("", max_length=200)
+    language: str = Field("zh", pattern="^(zh|en)$")
+
+
+class DetailResponse(BaseModel):
+    topic: str
+    parent: str
+    definition: str
+    key_points: list[str]
+    example: str
 
 
 # ---------------------------------------------------------------------------
@@ -101,36 +109,64 @@ kimi = KimiClient()
 # Prompts
 # ---------------------------------------------------------------------------
 
-SYSTEM_ZH = """你是 Learnable 知识引擎。当用户提供一个知识点时，你需要生成 3-5 个最重要的子知识点。
+EXPAND_SYSTEM_ZH = """你是 Learnable 知识引擎。当用户提供一个知识点时，仅仅返回 3-5 个最重要的子知识点名称，不要任何描述或解释。
 
 要求：
-1. 子知识点必须是实际可学习的、有意义的概念
-2. 避免过于粗糙或过于细节
-3. 每个子知识点附带一句简短描述
-4. 输出格式必须是 JSON，不要任何解释
+1. 子知识点必须是有意义的、可学习的概念
+2. 每个名称简洁，不超过 10 个字
+3. 输出格式必须是 JSON，不要任何解释
 
 输出格式：
 {
-  "nodes": [
-    {"id": "1", "label": "子知识点1", "description": "简短描述"},
+  "items": [
+    {"id": "1", "label": "子知识点1"},
+    {"id": "2", "label": "子知识点2"},
     ...
   ]
 }"""
 
-SYSTEM_EN = """You are the Learnable knowledge engine. When given a topic, generate 3-5 important sub-topics.
+EXPAND_SYSTEM_EN = """You are the Learnable knowledge engine. When given a topic, return only 3-5 important sub-topic names. No descriptions.
 
 Requirements:
 1. Sub-topics must be meaningful, learnable concepts
-2. Avoid being too broad or too granular
-3. Each sub-topic includes a brief description
-4. Output must be JSON only, no explanation
+2. Each name is concise, under 6 words
+3. Output must be JSON only, no explanation
 
 Output format:
 {
-  "nodes": [
-    {"id": "1", "label": "Sub-topic 1", "description": "Brief description"},
+  "items": [
+    {"id": "1", "label": "Sub-topic 1"},
+    {"id": "2", "label": "Sub-topic 2"},
     ...
   ]
+}"""
+
+DETAIL_SYSTEM_ZH = """你是 Learnable 知识引擎。用户想了解一个具体知识点的详情。
+
+请提供：
+1. 一句话定义
+2. 3-5 个核心要点
+3. 一个实际应用例子
+
+输出格式必须是 JSON：
+{
+  "definition": "...",
+  "key_points": ["...", "..."],
+  "example": "..."
+}"""
+
+DETAIL_SYSTEM_EN = """You are the Learnable knowledge engine. The user wants details on a specific topic.
+
+Provide:
+1. A one-sentence definition
+2. 3-5 key points
+3. A real-world application example
+
+Output must be JSON:
+{
+  "definition": "...",
+  "key_points": ["...", "..."],
+  "example": "..."
 }"""
 
 
@@ -140,21 +176,41 @@ Output format:
 
 @app.post("/api/expand", response_model=ExpandResponse)
 async def expand_topic(req: ExpandRequest) -> ExpandResponse:
-    """Expand a topic into sub-topics using Kimi LLM."""
-    system = SYSTEM_ZH if req.language == "zh" else SYSTEM_EN
-    prompt = f"请为以下知识点生成子知识点：{req.topic}"
+    """Expand a topic into sub-topic labels (lightweight, single LLM call)."""
+    system = EXPAND_SYSTEM_ZH if req.language == "zh" else EXPAND_SYSTEM_EN
+    prompt = f"主题：{req.topic}\n\n请返回这个主题的 3-5 个重要子知识点名称。"
 
     raw = kimi.chat(system, prompt, temperature=0.7)
 
-    # Extract JSON
     try:
         data = _extract_json(raw)
-        nodes = [KnowledgeNode(**n) for n in data.get("nodes", [])]
-    except Exception as e:
-        # Fallback: mock data
-        nodes = _mock_expand(req.topic, req.language)
+        items = data.get("items", [])
+    except Exception:
+        items = _mock_items(req.topic, req.language)
 
-    return ExpandResponse(parent=req.topic, nodes=nodes)
+    return ExpandResponse(parent=req.topic, items=items)
+
+
+@app.post("/api/detail", response_model=DetailResponse)
+async def detail_topic(req: DetailRequest) -> DetailResponse:
+    """Get detailed content for a single topic (concurrent-friendly)."""
+    system = DETAIL_SYSTEM_ZH if req.language == "zh" else DETAIL_SYSTEM_EN
+    prompt = f"知识点：{req.topic}\n属于领域：{req.parent or '未分类'}\n\n请提供该知识点的详细说明。"
+
+    raw = kimi.chat(system, prompt, temperature=0.5)
+
+    try:
+        data = _extract_json(raw)
+    except Exception:
+        data = _mock_detail(req.topic, req.language)
+
+    return DetailResponse(
+        topic=req.topic,
+        parent=req.parent,
+        definition=data.get("definition", ""),
+        key_points=data.get("key_points", []),
+        example=data.get("example", ""),
+    )
 
 
 @app.get("/api/health")
@@ -179,19 +235,32 @@ def _extract_json(text: str) -> dict:
     raise ValueError("No JSON found")
 
 
-def _mock_expand(topic: str, language: str) -> list[KnowledgeNode]:
-    """Fallback mock data when Kimi is unavailable."""
+def _mock_items(topic: str, language: str) -> list[dict]:
     if language == "zh":
         return [
-            KnowledgeNode(id="1", label=f"{topic} 的基础概念", description="理解核心定义和基本原理"),
-            KnowledgeNode(id="2", label=f"{topic} 的应用场景", description="实际案例和使用场景分析"),
-            KnowledgeNode(id="3", label=f"{topic} 的进阶技巧", description="提高效率的高级方法"),
+            {"id": "1", "label": f"{topic} 基础"},
+            {"id": "2", "label": f"{topic} 应用"},
+            {"id": "3", "label": f"{topic} 进阶"},
         ]
     return [
-        KnowledgeNode(id="1", label=f"Basics of {topic}", description="Core definitions and principles"),
-        KnowledgeNode(id="2", label=f"Applications of {topic}", description="Real-world use cases and scenarios"),
-        KnowledgeNode(id="3", label=f"Advanced {topic} techniques", description="Methods to improve efficiency"),
+        {"id": "1", "label": f"{topic} Basics"},
+        {"id": "2", "label": f"{topic} Applications"},
+        {"id": "3", "label": f"{topic} Advanced"},
     ]
+
+
+def _mock_detail(topic: str, language: str) -> dict:
+    if language == "zh":
+        return {
+            "definition": f"{topic}是一个重要的知识领域，涉及多个核心概念和实践应用。",
+            "key_points": ["核心原理", "关键技术", "实际应用", "发展趋势"],
+            "example": f"例如，在实际项目中运用{topic}解决了复杂问题。",
+        }
+    return {
+        "definition": f"{topic} is an important knowledge domain involving multiple core concepts and practical applications.",
+        "key_points": ["Core principles", "Key techniques", "Real-world usage", "Future trends"],
+        "example": f"For example, applying {topic} in real projects solved complex problems.",
+    }
 
 
 # ---------------------------------------------------------------------------
