@@ -267,14 +267,77 @@
     }
     function start() { if(!anim){anim=true; requestAnimationFrame(tick);} }
 
+    // Paper texture generator
+    let paperPattern = null;
+    function getPaperPattern() {
+      if (paperPattern) return paperPattern;
+      const pw = 512, ph = 512;
+      const pc = document.createElement('canvas');
+      pc.width = pw; pc.height = ph;
+      const px = pc.getContext('2d');
+
+      // Base paper color
+      px.fillStyle = '#faf6f0';
+      px.fillRect(0, 0, pw, ph);
+
+      // Fiber noise
+      const img = px.getImageData(0, 0, pw, ph);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const n = (Math.random() - 0.5) * 12;
+        img.data[i]   = Math.min(255, Math.max(0, img.data[i] + n));
+        img.data[i+1] = Math.min(255, Math.max(0, img.data[i+1] + n));
+        img.data[i+2] = Math.min(255, Math.max(0, img.data[i+2] + n));
+      }
+      px.putImageData(img, 0, 0);
+
+      // Hand-drawn fibers
+      px.globalAlpha = 0.04;
+      px.strokeStyle = '#8a7a60';
+      px.lineWidth = 0.5;
+      for (let i = 0; i < 60; i++) {
+        const x = Math.random() * pw;
+        const y = Math.random() * ph;
+        px.beginPath();
+        px.moveTo(x, y);
+        px.bezierCurveTo(
+          x + R(-30, 30), y + R(-30, 30),
+          x + R(-30, 30), y + R(-30, 30),
+          x + R(-20, 20), y + R(-20, 20)
+        );
+        px.stroke();
+      }
+
+      // Subtle coffee stain spots
+      px.globalAlpha = 0.015;
+      px.fillStyle = '#a08060';
+      for (let i = 0; i < 5; i++) {
+        const cx = Math.random() * pw;
+        const cy = Math.random() * ph;
+        const r = R(20, 60);
+        px.beginPath();
+        for (let a = 0; a < Math.PI * 2; a += 0.3) {
+          const rr = r + R(-5, 5);
+          const sx = cx + Math.cos(a) * rr;
+          const sy = cy + Math.sin(a) * rr;
+          if (a === 0) px.moveTo(sx, sy);
+          else px.lineTo(sx, sy);
+        }
+        px.closePath();
+        px.fill();
+      }
+
+      paperPattern = ctx.createPattern(pc, 'repeat');
+      return paperPattern;
+    }
+
     // Render
     function render() {
       const W = canvas.width = innerWidth;
       const H = canvas.height = innerHeight;
       ctx.clearRect(0,0,W,H);
 
-      // Paper background with subtle dot grid
-      ctx.fillStyle = '#faf6f0';
+      // Paper texture background
+      ctx.fillStyle = getPaperPattern();
       ctx.fillRect(0,0,W,H);
 
       ctx.save();
