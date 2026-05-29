@@ -60,6 +60,19 @@ KIMI_API_KEY=your_api_key_here
 | 后端 | FastAPI + Python |
 | AI | Kimi (Moonshot AI) |
 | 布局 | 扇形径向布局 + 贝塞尔连线 |
+| 数据库 | SQLite (单文件，兼容 Mac 桌面端) |
+| 桌面端 | pywebview + PyInstaller + DMG |
+
+## macOS 桌面应用
+
+可打包为原生 macOS 应用（`.app` + `.dmg`）：
+
+```bash
+cd build
+./build_mac.sh
+```
+
+详见 [build/README_BUILD.md](build/README_BUILD.md)。
 
 ## API 接口
 
