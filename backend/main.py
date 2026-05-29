@@ -16,9 +16,11 @@ import urllib.request
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+from graph_db import get_db
 
 # Load API key from agentrl .env
 env_path = Path("/opt/agentrl/.env")
@@ -28,7 +30,7 @@ if env_path.exists():
 KIMI_API_KEY = os.environ.get("KIMI_API_KEY", "")
 KIMI_BASE_URL = os.environ.get("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
 
-app = FastAPI(title="Learnable", version="0.2.0")
+app = FastAPI(title="Learnable", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,6 +67,24 @@ class DetailResponse(BaseModel):
     definition: str
     key_points: list[str]
     example: str
+
+
+class SaveRequest(BaseModel):
+    session_id: str
+    root_topic: str
+    nodes: list[dict]
+    edges: list[dict]
+    camera_x: float = 0
+    camera_y: float = 0
+    camera_zoom: float = 0.3
+
+
+class LoadRequest(BaseModel):
+    session_id: str
+
+
+class ImportRequest(BaseModel):
+    data: dict
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +236,94 @@ async def detail_topic(req: DetailRequest) -> DetailResponse:
 @app.get("/api/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "kimi_configured": str(bool(KIMI_API_KEY))}
+
+
+# ---------------------------------------------------------------------------
+# Graph DB Endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/save")
+async def save_session(req: SaveRequest) -> dict[str, str]:
+    """Save current knowledge tree to SQLite database."""
+    db = get_db()
+    db.create_session(req.session_id, req.root_topic)
+
+    for n in req.nodes:
+        db.insert_node(
+            node_id=n["id"],
+            label=n["label"],
+            parent_id=n.get("parent_id"),
+            level=n.get("level", 0),
+            x=n.get("x", 0),
+            y=n.get("y", 0),
+            zoom_threshold=n.get("zoom_threshold", 0),
+            detail=n.get("detail"),
+            color_index=n.get("color_index", 0),
+            expanded=n.get("expanded", False),
+        )
+
+    for e in req.edges:
+        db.insert_edge(e["from_id"], e["to_id"])
+
+    db.update_session_camera(req.session_id, req.camera_x, req.camera_y, req.camera_zoom)
+    return {"status": "saved", "session_id": req.session_id}
+
+
+@app.get("/api/sessions")
+async def list_sessions() -> list[dict]:
+    """List all saved sessions."""
+    db = get_db()
+    return db.list_sessions()
+
+
+@app.post("/api/load")
+async def load_session(req: LoadRequest) -> dict[str, Any]:
+    """Load a saved knowledge tree."""
+    db = get_db()
+    session = db.get_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    all_nodes = db.get_all_nodes()
+    all_edges = db.get_all_edges()
+
+    # Build tree structure
+    node_map = {n["id"]: n for n in all_nodes}
+    root = None
+    for n in all_nodes:
+        if n["parent_id"] is None:
+            root = n
+            break
+
+    return {
+        "session": session,
+        "root": root,
+        "nodes": all_nodes,
+        "edges": all_edges,
+    }
+
+
+@app.get("/api/export")
+async def export_graph() -> dict[str, Any]:
+    """Export entire graph as JSON for backup or migration."""
+    db = get_db()
+    return db.export_graph()
+
+
+@app.post("/api/import")
+async def import_graph(req: ImportRequest) -> dict[str, str]:
+    """Import graph from JSON."""
+    db = get_db()
+    db.import_graph(req.data)
+    return {"status": "imported"}
+
+
+@app.post("/api/delete_session")
+async def delete_session(req: LoadRequest) -> dict[str, str]:
+    """Delete a session and all its nodes."""
+    db = get_db()
+    db.delete_session(req.session_id)
+    return {"status": "deleted"}
 
 
 # ---------------------------------------------------------------------------

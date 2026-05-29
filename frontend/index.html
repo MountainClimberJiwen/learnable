@@ -113,6 +113,152 @@
     }
     .zoom-hint.fade { opacity: 0; }
 
+    /* Session panel */
+    .session-btn {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      width: 40px;
+      height: 40px;
+      background: #fff8e8;
+      border: 2px solid #d4c4a8;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: 3px 3px 0 rgba(180,160,130,0.25);
+      transition: all 0.2s;
+      transform: rotate(2deg);
+    }
+    .session-btn:hover {
+      background: #ffeebb;
+      transform: rotate(0deg) translateY(-2px);
+      box-shadow: 4px 5px 0 rgba(180,160,130,0.3);
+    }
+    .session-panel {
+      position: fixed;
+      top: 72px;
+      right: 24px;
+      width: 280px;
+      background: #fffdf8;
+      border: 2px solid #e0d5c8;
+      border-radius: 12px;
+      box-shadow: 4px 6px 0 rgba(160,140,110,0.15);
+      z-index: 20;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: 'Kalam', 'Ma Shan Zheng', cursive;
+    }
+    .session-panel.open { display: flex; }
+    .session-header {
+      padding: 14px 16px;
+      border-bottom: 2px dashed #e8ddd0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #4a4036;
+    }
+    .session-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #a09080;
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .session-close:hover { background: #f0ebe5; color: #4a4036; }
+    .session-body { padding: 12px 16px; max-height: 400px; overflow-y: auto; }
+    .session-label {
+      font-size: 11px;
+      color: #a09080;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+    .session-topic {
+      font-size: 15px;
+      font-weight: 600;
+      color: #4a4036;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      background: #faf6f0;
+      border-radius: 8px;
+      border: 1.5px solid #e8ddd0;
+    }
+    .session-action {
+      width: 100%;
+      padding: 8px 12px;
+      border: 2px solid #c49a48;
+      border-radius: 8px;
+      background: #fff8e8;
+      color: #8a6a2a;
+      font-family: 'Kalam', 'Ma Shan Zheng', cursive;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 2px 2px 0 rgba(180,160,130,0.2);
+      transition: all 0.15s;
+      margin-bottom: 8px;
+    }
+    .session-action:hover {
+      background: #ffeebb;
+      transform: translateY(-1px);
+      box-shadow: 3px 3px 0 rgba(180,160,130,0.25);
+    }
+    .session-action.secondary {
+      border-color: #b8a898;
+      color: #7a6a5a;
+      background: #faf6f0;
+    }
+    .session-action.secondary:hover { background: #f5efe8; }
+    .session-divider {
+      height: 2px;
+      background: repeating-linear-gradient(90deg, #e8ddd0, #e8ddd0 6px, transparent 6px, transparent 10px);
+      margin: 12px 0;
+    }
+    .session-list { display: flex; flex-direction: column; gap: 6px; }
+    .session-item {
+      padding: 8px 10px;
+      background: #faf8f5;
+      border: 1.5px solid #e8ddd0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .session-item:hover {
+      background: #fff8e8;
+      border-color: #d4c4a8;
+      transform: translateX(2px);
+    }
+    .session-item-title { font-size: 14px; color: #4a4036; font-weight: 600; }
+    .session-item-date { font-size: 11px; color: #a09080; }
+    .session-item-delete {
+      background: none;
+      border: none;
+      color: #c4a8a0;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+    .session-item-delete:hover { background: #f8e8e8; color: #a06060; }
+    .session-empty { font-size: 13px; color: #a09080; text-align: center; padding: 12px; }
+
     /* Loading — handwritten pencil dot */
     .loading {
       position: fixed;
@@ -161,6 +307,29 @@
   <div class="loading" id="loading">
     <div class="pencil"></div>
     <span>正在思考...</span>
+  </div>
+
+  <!-- Session Panel -->
+  <div class="session-btn" id="sessionBtn" title="保存/加载">✎</div>
+  <div class="session-panel" id="sessionPanel">
+    <div class="session-header">
+      <span>我的笔记</span>
+      <button class="session-close" id="sessionClose">×</button>
+    </div>
+    <div class="session-body">
+      <div class="session-current">
+        <div class="session-label">当前主题</div>
+        <div class="session-topic" id="currentTopic">未开始</div>
+        <button class="session-action" id="saveBtn">保存当前探索</button>
+      </div>
+      <div class="session-divider"></div>
+      <div class="session-label">历史笔记</div>
+      <div class="session-list" id="sessionList">
+        <div class="session-empty">暂无保存的笔记</div>
+      </div>
+      <div class="session-divider"></div>
+      <button class="session-action secondary" id="exportBtn">导出 JSON</button>
+    </div>
   </div>
 
   <div class="zoom-hint" id="hint">滚轮缩放探索层次 · 点击节点聚焦</div>
@@ -650,13 +819,196 @@
         document.getElementById('loading').classList.remove('active');
         document.getElementById('loading').querySelector('span').textContent = '正在思考...';
       }
+    // Session management
+    const sessionBtn = document.getElementById('sessionBtn');
+    const sessionPanel = document.getElementById('sessionPanel');
+    const sessionClose = document.getElementById('sessionClose');
+    const saveBtn = document.getElementById('saveBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const sessionList = document.getElementById('sessionList');
+    const currentTopic = document.getElementById('currentTopic');
+    let currentSessionId = '';
+
+    sessionBtn.addEventListener('click', () => {
+      sessionPanel.classList.toggle('open');
+      if (sessionPanel.classList.contains('open')) loadSessionList();
+    });
+    sessionClose.addEventListener('click', () => sessionPanel.classList.remove('open'));
+
+    async function loadSessionList() {
+      try {
+        const res = await fetch(`${API_BASE}/api/sessions`);
+        const sessions = await res.json();
+        if (sessions.length === 0) {
+          sessionList.innerHTML = '<div class="session-empty">暂无保存的笔记</div>';
+          return;
+        }
+        sessionList.innerHTML = sessions.map(s => `
+          <div class="session-item" data-id="${s.id}">
+            <div>
+              <div class="session-item-title">${s.root_topic}</div>
+              <div class="session-item-date">${new Date(s.updated_at*1000).toLocaleDateString()}</div>
+            </div>
+            <button class="session-item-delete" data-id="${s.id}" title="删除">×</button>
+          </div>
+        `).join('');
+        sessionList.querySelectorAll('.session-item').forEach(el => {
+          el.addEventListener('click', e => {
+            if (e.target.classList.contains('session-item-delete')) return;
+            loadSession(el.dataset.id);
+          });
+        });
+        sessionList.querySelectorAll('.session-item-delete').forEach(btn => {
+          btn.addEventListener('click', async e => {
+            e.stopPropagation();
+            if (!confirm('确定删除这个笔记吗？')) return;
+            await fetch(`${API_BASE}/api/delete_session`, {
+              method: 'POST', headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({session_id: btn.dataset.id}),
+            });
+            loadSessionList();
+          });
+        });
+      } catch (e) {
+        sessionList.innerHTML = '<div class="session-empty">加载失败</div>';
+      }
     }
 
+    async function saveCurrent() {
+      if (nodes.size === 0) return;
+      const root = Array.from(nodes.values()).find(n => n.parent === null);
+      if (!root) return;
+
+      const nodeData = Array.from(nodes.values()).map(n => ({
+        id: n.id,
+        label: n.label,
+        parent_id: n.parent,
+        level: n.level,
+        x: n.x,
+        y: n.y,
+        zoom_threshold: n.minZ,
+        detail: n.detail,
+        color_index: n.level % PALETTE.length,
+        expanded: n.generated,
+      }));
+      const edgeData = edges.map(e => ({from_id: e.a, to_id: e.b}));
+
+      const sessionId = currentSessionId || `session_${Date.now()}`;
+      currentSessionId = sessionId;
+
+      try {
+        await fetch(`${API_BASE}/api/save`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            session_id: sessionId,
+            root_topic: root.label,
+            nodes: nodeData,
+            edges: edgeData,
+            camera_x: cam.x,
+            camera_y: cam.y,
+            camera_zoom: cam.z,
+          }),
+        });
+        showToast('✍️ 笔记已保存');
+      } catch (e) {
+        showToast('保存失败');
+      }
+    }
+
+    async function loadSession(sessionId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/load`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({session_id: sessionId}),
+        });
+        const data = await res.json();
+        if (!data.session) { showToast('加载失败'); return; }
+
+        // Rebuild graph
+        nodes.clear(); edges.length = 0;
+        currentSessionId = sessionId;
+
+        for (const n of data.nodes) {
+          const node = new Node(n.id, n.label, n.x || 0, n.y || 0, n.parent_id, n.level);
+          node.detail = n.detail;
+          node.detailLoaded = !!n.detail;
+          node.generated = n.expanded || false;
+          node.x = n.x || 0; node.y = n.y || 0;
+          node.tx = n.x || 0; node.ty = n.y || 0;
+          nodes.set(n.id, node);
+        }
+        for (const e of data.edges) {
+          edges.push({a: e.from_id, b: e.to_id});
+          const parent = nodes.get(e.from_id);
+          if (parent) parent.children.push(e.to_id);
+        }
+
+        // Restore camera
+        if (data.session) {
+          cam.tx = data.session.camera_x || 0;
+          cam.ty = data.session.camera_y || 0;
+          cam.tz = data.session.camera_zoom || 0.3;
+        }
+
+        currentTopic.textContent = data.session.root_topic;
+        document.getElementById('topic').value = data.session.root_topic;
+        sessionPanel.classList.remove('open');
+        render(); start();
+        showToast(`✍️ 已加载: ${data.session.root_topic}`);
+      } catch (e) {
+        console.error(e);
+        showToast('加载失败');
+      }
+    }
+
+    async function exportJSON() {
+      try {
+        const res = await fetch(`${API_BASE}/api/export`);
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `learnable_export_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('✍️ 已导出 JSON');
+      } catch (e) {
+        showToast('导出失败');
+      }
+    }
+
+    saveBtn.addEventListener('click', saveCurrent);
+    exportBtn.addEventListener('click', exportJSON);
+
+    // Toast helper
+    function showToast(msg) {
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position:fixed; top:20px; right:50%;
+        transform:translateX(50%) rotate(-1deg);
+        background:#fffdf8; border:2px solid #d4c4a8;
+        padding:10px 20px; border-radius:10px;
+        font-family:'Kalam','Ma Shan Zheng',cursive;
+        font-size:14px; color:#4a4036;
+        box-shadow:3px 4px 0 rgba(160,140,110,0.15);
+        z-index:100; opacity:0; transition:opacity 0.4s;
+      `;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => { toast.style.opacity = '1'; });
+      setTimeout(() => { toast.style.opacity = '0'; setTimeout(()=>toast.remove(), 400); }, 2500);
+    }
+
+    // Init
     function initRoot(topic) {
-      nodes.clear(); edges.length=0;
-      const root = new Node('root', topic, 0, 0, null, 0);
+      nodes.clear(); edges.length=0; currentSessionId = '';
+            const root = new Node('root', topic, 0, 0, null, 0);
       nodes.set('root', root);
       cam.tx = 0; cam.ty = 0; cam.tz = 0.3;
+      currentTopic.textContent = topic;
       render(); start();
       setTimeout(()=>generate(root), 400);
     }
