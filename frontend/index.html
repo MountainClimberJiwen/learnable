@@ -4,11 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Learnable — 放大探索，层层深入</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Ma+Shan+Zheng&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f7f5f2;
+      font-family: 'Kalam', 'Ma Shan Zheng', 'ZCOOL KuaiLe', cursive;
+      background: #faf6f0;
       overflow: hidden;
       width: 100vw;
       height: 100vh;
@@ -20,7 +23,7 @@
     #canvas:active { cursor: grabbing; }
     #canvas.cursor-pointer { cursor: pointer; }
 
-    /* Minimal UI */
+    /* Minimal UI — handwritten style */
     .ui {
       position: fixed;
       top: 24px;
@@ -30,82 +33,120 @@
     }
     .ui > * { pointer-events: auto; }
     .brand {
-      font-size: 20px;
+      font-family: 'Kalam', 'Ma Shan Zheng', cursive;
+      font-size: 28px;
       font-weight: 700;
-      color: #3d342b;
-      letter-spacing: -0.3px;
+      color: #4a4036;
+      letter-spacing: 1px;
+      transform: rotate(-1.5deg);
+      text-shadow: 2px 2px 0 rgba(212, 168, 83, 0.2);
     }
-    .brand span { color: #d4a853; }
+    .brand span { color: #c49a48; }
     .search {
-      margin-top: 12px;
+      margin-top: 16px;
       display: flex;
-      gap: 6px;
+      gap: 8px;
+      transform: rotate(0.5deg);
     }
     .search input {
-      width: 220px;
+      font-family: 'Kalam', 'Ma Shan Zheng', cursive;
+      width: 230px;
       padding: 10px 14px;
-      border: 1.5px solid #e0d5c8;
-      border-radius: 10px;
-      font-size: 14px;
+      border: 2px solid #d4c4a8;
+      border-radius: 8px;
+      font-size: 15px;
       outline: none;
-      background: rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.85);
       backdrop-filter: blur(8px);
-      color: #3d342b;
+      color: #4a4036;
       transition: all 0.2s;
+      box-shadow: 3px 3px 0 rgba(180, 160, 130, 0.2);
     }
-    .search input:focus { border-color: #d4a853; box-shadow: 0 0 0 3px rgba(212,168,83,0.15); }
+    .search input:focus {
+      border-color: #d4a853;
+      box-shadow: 4px 4px 0 rgba(212, 168, 83, 0.25);
+      transform: rotate(-0.5deg) translateY(-1px);
+    }
+    .search input::placeholder { color: #b8a88; opacity: 0.7; }
     .btn {
-      padding: 10px 16px;
-      border: none;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 600;
+      font-family: 'Kalam', 'Ma Shan Zheng', cursive;
+      padding: 10px 18px;
+      border: 2px solid #c49a48;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
       cursor: pointer;
-      background: #d4a853;
-      color: #fff;
-      transition: all 0.2s;
+      background: #fff8e8;
+      color: #8a6a2a;
+      box-shadow: 3px 3px 0 rgba(180, 160, 130, 0.3);
+      transition: all 0.15s;
+      transform: rotate(-1deg);
     }
-    .btn:hover { background: #c49a48; transform: translateY(-1px); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn:hover {
+      background: #ffeebb;
+      transform: rotate(0deg) translateY(-2px);
+      box-shadow: 4px 5px 0 rgba(180, 160, 130, 0.35);
+    }
+    .btn:active {
+      transform: rotate(0deg) translateY(0);
+      box-shadow: 1px 1px 0 rgba(180, 160, 130, 0.3);
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-    /* Zoom indicator */
+    /* Zoom hint — handwritten */
     .zoom-hint {
       position: fixed;
       bottom: 24px;
       left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.85);
+      transform: translateX(-50%) rotate(0.5deg);
+      font-family: 'Kalam', 'Ma Shan Zheng', cursive;
+      background: rgba(255,255,255,0.8);
       backdrop-filter: blur(8px);
-      padding: 8px 20px;
-      border-radius: 20px;
-      font-size: 12px;
-      color: #9a8e80;
+      padding: 8px 22px;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #a09080;
+      border: 1.5px dashed #d4c4a8;
       z-index: 10;
       pointer-events: none;
-      transition: opacity 0.5s;
+      transition: opacity 0.6s;
     }
     .zoom-hint.fade { opacity: 0; }
 
-    /* Loading dot */
+    /* Loading — handwritten pencil dot */
     .loading {
       position: fixed;
-      top: 24px;
-      right: 24px;
+      top: 28px;
+      right: 28px;
       display: none;
       align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      color: #9a8e80;
+      gap: 10px;
+      font-family: 'Kalam', 'Ma Shan Zheng', cursive;
+      font-size: 14px;
+      color: #9a8a70;
       z-index: 10;
+      transform: rotate(1deg);
     }
     .loading.active { display: flex; }
-    .dot {
-      width: 8px; height: 8px;
-      background: #d4a853;
-      border-radius: 50%;
-      animation: pulse 1s ease-in-out infinite;
+    .pencil {
+      width: 20px;
+      height: 20px;
+      position: relative;
     }
-    @keyframes pulse { 0%,100%{opacity:0.4;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
+    .pencil::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #d4a853;
+      animation: scribble 0.6s ease-in-out infinite;
+    }
+    @keyframes scribble {
+      0%, 100% { transform: translateX(0) scaleX(0.3); }
+      50% { transform: translateX(8px) scaleX(1); }
+    }
   </style>
 </head>
 <body>
@@ -118,7 +159,7 @@
   </div>
 
   <div class="loading" id="loading">
-    <div class="dot"></div>
+    <div class="pencil"></div>
     <span>正在思考...</span>
   </div>
 
@@ -128,36 +169,36 @@
 
   <script>
     // ============================================================
-    // Learnable v0.3 — Zoomable Knowledge Tree
-    // Core idea: zoom controls visibility, click controls focus
+    // Learnable v0.4 — Handwritten Zoomable Knowledge Tree
     // ============================================================
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const API_BASE = '';
 
+    // Hand-drawn randomness helpers
+    const R = (min, max) => Math.random() * (max - min) + min;
+    const jitter = (amt) => R(-amt, amt);
+
     // Camera
-    const cam = {
-      x: 0, y: 0, z: 0.3,
-      tx: 0, ty: 0, tz: 0.3,
-    };
+    const cam = { x: 0, y: 0, z: 0.3, tx: 0, ty: 0, tz: 0.3 };
 
     // State
     const nodes = new Map();
     const edges = [];
     let hovered = null;
     let dragging = false;
-    let last = {x:0,y:0};
+    let last = {x:0, y:0};
     let anim = false;
 
-    // Colors
+    // Warm handwritten palette
     const PALETTE = [
-      {bg:'#e8d5c4',border:'#d4b896',text:'#5a4a3a'}, // warm brown
-      {bg:'#c8e6c9',border:'#a5d6a7',text:'#2e5c30'}, // soft green
-      {bg:'#bbdefb',border:'#90caf9',text:'#1a3c5c'}, // soft blue
-      {bg:'#f8bbd0',border:'#f48fb1',text:'#6a1b3d'}, // soft pink
-      {bg:'#fff9c4',border:'#fff176',text:'#5c5400'}, // soft yellow
-      {bg:'#d1c4e9',border:'#b39ddb',text:'#3c235c'}, // soft purple
+      {bg:'#fff5e6',border:'#e8c9a0',text:'#5a4530',line:'#8a7a60'}, // warm cream
+      {bg:'#f0f8e8',border:'#b8d4a0',text:'#3a5a30',line:'#6a8a50'}, // soft green
+      {bg:'#e8f0f8',border:'#a0c4e8',text:'#2a4a6a',line:'#5a7a9a'}, // soft blue
+      {bg:'#f8e8f0',border:'#e8a0c4',text:'#6a2a4a',line:'#9a5a7a'}, // soft pink
+      {bg:'#f8f5e0',border:'#e8d8a0',text:'#5a5000',line:'#8a8050'}, // soft yellow
+      {bg:'#f0e8f8',border:'#c4a0e8',text:'#4a2a6a',line:'#7a5a9a'}, // soft purple
     ];
 
     class Node {
@@ -174,24 +215,23 @@
         this.detail = null;
         this.detailLoaded = false;
         this.color = PALETTE[level % PALETTE.length];
+        this.seed = Math.random(); // for consistent hand-drawn shape
 
-        // Visibility: deeper nodes need more zoom
         this.minZ = Math.max(0.08, 0.25 * level);
         this.maxZ = 4;
 
-        // Content thresholds within the node
         this.ct = {
-          label: 0.15,        // always show label
-          brief: 0.7,         // show short description
-          points: 1.1,        // show key points
-          example: 1.6,       // show example
+          label: 0.15,
+          brief: 0.7,
+          points: 1.1,
+          example: 1.6,
         };
       }
 
       bounds(z) {
         const s = Math.max(0.3, 1 - this.level * 0.08);
-        const w = 180 * s;
-        const h = (z >= this.ct.points ? 140 : (z >= this.ct.brief ? 70 : 40)) * s;
+        const w = 190 * s;
+        const h = (z >= this.ct.points ? 150 : (z >= this.ct.brief ? 75 : 45)) * s;
         return {l:this.x-w/2, t:this.y-h/2, r:this.x+w/2, b:this.y+h/2, w, h, s};
       }
 
@@ -201,8 +241,7 @@
       }
     }
 
-    // Layout — tree-like radial
-    function layout(parent, count, radius=220) {
+    function layout(parent, count, radius=240) {
       if (count===0) return [];
       const span = Math.min(Math.PI*1.3, Math.PI*2*count/6);
       const start = -Math.PI/2 - span/2;
@@ -233,15 +272,16 @@
       const W = canvas.width = innerWidth;
       const H = canvas.height = innerHeight;
       ctx.clearRect(0,0,W,H);
-      ctx.fillStyle = '#f7f5f2';
+
+      // Paper background with subtle dot grid
+      ctx.fillStyle = '#faf6f0';
       ctx.fillRect(0,0,W,H);
 
       ctx.save();
       ctx.translate(W/2+cam.x, H/2+cam.y);
       ctx.scale(cam.z, cam.z);
 
-      // Subtle grid
-      drawGrid(W,H);
+      drawDotGrid(W,H);
 
       // Edges
       for (const e of edges) {
@@ -251,29 +291,39 @@
         const op = Math.min(a===hovered||b===hovered?1:0.6, (cam.z-a.minZ)*2, (cam.z-b.minZ)*2);
         if (op<=0) continue;
         ctx.globalAlpha = Math.min(1, op);
-        ctx.strokeStyle = a===hovered||b===hovered? '#d4a853' : '#d8cfc4';
-        ctx.lineWidth = a===hovered||b===hovered? 2.5 : 1.2;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        const mx=(a.x+b.x)/2, my=(a.y+b.y)/2 + (b.y>a.y?40:-40);
-        ctx.quadraticCurveTo(mx, my, b.x, b.y);
-        ctx.stroke();
+        ctx.strokeStyle = a===hovered||b===hovered? '#c49a48' : '#d0c4b0';
+        ctx.lineWidth = a===hovered||b===hovered? 2.5 : 1.5;
+        ctx.lineCap = 'round';
+        drawHandDrawnLine(a.x, a.y, b.x, b.y);
       }
       ctx.globalAlpha = 1;
 
-      // Nodes — back to front by level
+      // Nodes
       const sorted = Array.from(nodes.values()).sort((a,b)=>a.level-b.level);
       for (const n of sorted) drawNode(n);
 
       ctx.restore();
     }
 
-    function drawGrid(W,H) {
+    function drawDotGrid(W,H) {
       const step=50, ox=(cam.x+W/2)%step, oy=(cam.y+H/2)%step;
-      ctx.strokeStyle='rgba(200,190,175,0.12)';
-      ctx.lineWidth=1;
-      for (let x=-W/2-ox; x<W/2; x+=step) { ctx.beginPath(); ctx.moveTo(x,-H/2); ctx.lineTo(x,H/2); ctx.stroke(); }
-      for (let y=-H/2-oy; y<H/2; y+=step) { ctx.beginPath(); ctx.moveTo(-W/2,y); ctx.lineTo(W/2,y); ctx.stroke(); }
+      ctx.fillStyle = 'rgba(180,170,150,0.18)';
+      for (let x=-W/2-ox; x<W/2; x+=step) {
+        for (let y=-H/2-oy; y<H/2; y+=step) {
+          ctx.beginPath();
+          ctx.arc(x + jitter(1.5), y + jitter(1.5), 1.2, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+
+    function drawHandDrawnLine(x1, y1, x2, y2) {
+      const midX = (x1+x2)/2 + jitter(15);
+      const midY = (y1+y2)/2 + jitter(15) + (y2>y1?30:-30);
+      ctx.beginPath();
+      ctx.moveTo(x1+jitter(2), y1+jitter(2));
+      ctx.quadraticCurveTo(midX, midY, x2+jitter(2), y2+jitter(2));
+      ctx.stroke();
     }
 
     function drawNode(n) {
@@ -284,61 +334,60 @@
       const alpha = Math.min(1, (z - n.minZ) * 3);
       ctx.globalAlpha = alpha;
 
-      // Shadow
-      ctx.shadowColor='rgba(60,50,40,0.06)';
-      ctx.shadowBlur=10*z; ctx.shadowOffsetY=4*z;
-
-      // Body
+      // Hand-drawn background
       ctx.fillStyle = n.color.bg;
-      roundRect(b.l, b.t, b.w, b.h, 10*b.s);
+      handDrawnRect(b.l, b.t, b.w, b.h, 12*b.s, n.seed);
       ctx.fill();
-      ctx.shadowColor='transparent';
 
-      // Border
-      ctx.strokeStyle = n===hovered ? n.color.border : 'rgba(0,0,0,0.06)';
-      ctx.lineWidth = n===hovered ? 2 : 1;
-      roundRect(b.l, b.t, b.w, b.h, 10*b.s);
+      // Hand-drawn border
+      ctx.strokeStyle = n===hovered ? n.color.border : 'rgba(90,70,50,0.15)';
+      ctx.lineWidth = n===hovered ? 2.5 : 1.8;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      handDrawnRect(b.l, b.t, b.w, b.h, 12*b.s, n.seed);
       ctx.stroke();
 
-      // Loading indicator
+      // Generating indicator
       if (n.generating) {
-        ctx.fillStyle = '#d4a853';
+        ctx.strokeStyle = '#c49a48';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        const angle = Date.now()/150;
-        ctx.arc(n.x+b.w/2-8*b.s, n.y-b.h/2+8*b.s, 3*b.s, angle, angle+4);
+        const angle = Date.now()/120 + n.seed*10;
+        ctx.arc(n.x+jitter(2), n.y-b.h/2+10*b.s, 4*b.s, angle, angle+5);
         ctx.stroke();
       }
 
-      // Label — always at brief+ zoom
+      // Label
       if (z >= n.ct.label) {
         ctx.fillStyle = n.color.text;
         ctx.textAlign = 'center';
-        ctx.font = `600 ${14*b.s}px sans-serif`;
-        ctx.fillText(n.label, n.x, n.y - (z>=n.ct.brief?10*b.s:0));
+        ctx.font = `700 ${15*b.s}px 'Kalam', 'Ma Shan Zheng', cursive`;
+        const labelY = n.y - (z>=n.ct.brief?12*b.s:0) + jitter(1);
+        ctx.fillText(n.label, n.x+jitter(1.5), labelY);
       }
 
-      // Brief description
+      // Brief
       if (z >= n.ct.brief && n.detail) {
-        ctx.fillStyle = n.color.text;
-        ctx.globalAlpha = alpha * 0.7;
-        ctx.font = `400 ${11*b.s}px sans-serif`;
-        const brief = n.detail.definition ? (n.detail.definition.slice(0,40)+(n.detail.definition.length>40?'...':'')) : '';
-        ctx.fillText(brief, n.x, n.y + 14*b.s);
+        ctx.globalAlpha = alpha * 0.75;
+        ctx.font = `400 ${11.5*b.s}px 'Kalam', 'Ma Shan Zheng', cursive`;
+        const brief = n.detail.definition ? (n.detail.definition.slice(0,42)+(n.detail.definition.length>42?'...':'')) : '';
+        ctx.fillText(brief, n.x+jitter(1), n.y + 16*b.s);
       }
 
       // Key points
       if (z >= n.ct.points && n.detail && n.detail.key_points) {
-        ctx.globalAlpha = alpha * 0.85;
-        ctx.font = `400 ${10*b.s}px sans-serif`;
+        ctx.globalAlpha = alpha * 0.8;
+        ctx.font = `400 ${10.5*b.s}px 'Kalam', 'Ma Shan Zheng', cursive`;
         n.detail.key_points.slice(0,3).forEach((kp,i)=>{
-          const y = n.y + 32*b.s + i*16*b.s;
-          ctx.fillStyle = '#d4a853';
+          const y = n.y + 38*b.s + i*17*b.s;
+          // Hand-drawn bullet
+          ctx.fillStyle = n.color.border;
           ctx.beginPath();
-          ctx.arc(n.x - b.w/2 + 14*b.s, y, 2*b.s, 0, Math.PI*2);
+          ctx.arc(n.x - b.w/2 + 16*b.s + jitter(1), y + jitter(1), 2.5*b.s, 0, Math.PI*2);
           ctx.fill();
           ctx.fillStyle = n.color.text;
           ctx.textAlign = 'left';
-          ctx.fillText(kp.slice(0,25)+(kp.length>25?'...':''), n.x - b.w/2 + 22*b.s, y+3*b.s);
+          ctx.fillText(kp.slice(0,28)+(kp.length>28?'...':''), n.x - b.w/2 + 24*b.s, y+4*b.s);
         });
         ctx.textAlign = 'center';
       }
@@ -347,34 +396,65 @@
       if (z >= n.ct.example && n.detail && n.detail.example) {
         ctx.globalAlpha = alpha * 0.6;
         ctx.fillStyle = n.color.text;
-        ctx.font = `italic 400 ${9*b.s}px sans-serif`;
-        const ex = n.detail.example.slice(0,50)+(n.detail.example.length>50?'...':'');
-        ctx.fillText(`例：${ex}`, n.x, n.y + b.h/2 - 10*b.s);
+        ctx.font = `italic 400 ${9.5*b.s}px 'Kalam', 'Ma Shan Zheng', cursive`;
+        const ex = n.detail.example.slice(0,55)+(n.detail.example.length>55?'...':'');
+        ctx.fillText(`例：${ex}`, n.x+jitter(1), n.y + b.h/2 - 10*b.s);
       }
 
-      // Expand hint (small dot when children not yet generated)
+      // Expand hint (small hand-drawn star)
       if (!n.generated && !n.generating && z > n.minZ + 0.1) {
         ctx.globalAlpha = alpha * 0.5;
-        ctx.fillStyle = '#d4a853';
-        ctx.beginPath();
-        ctx.arc(n.x + b.w/2 - 6*b.s, n.y + b.h/2 - 6*b.s, 3*b.s, 0, Math.PI*2);
-        ctx.fill();
+        ctx.fillStyle = '#c49a48';
+        drawStar(n.x + b.w/2 - 8*b.s, n.y + b.h/2 - 8*b.s, 5*b.s, n.seed);
       }
 
       ctx.globalAlpha = 1;
     }
 
-    function roundRect(x,y,w,h,r) {
+    function handDrawnRect(x, y, w, h, r, seed) {
+      const s = seed * 1000;
+      const rnd = (i) => Math.sin(s + i * 7.3) * 0.5 + 0.5; // deterministic pseudo-random
       ctx.beginPath();
-      ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
-      ctx.arcTo(x+w,y,x+w,y+r,r);
-      ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
-      ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
-      ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+      const pts = [
+        [x+r, y], [x+w-r, y],
+        [x+w, y+r], [x+w, y+h-r],
+        [x+w-r, y+h], [x+r, y+h],
+        [x, y+h-r], [x, y+r],
+      ];
+      const cps = [
+        [x+w-r+rnd(0)*r*0.3, y+jitter(r*0.2)],
+        [x+w+jitter(r*0.2), y+r+rnd(1)*r*0.3],
+        [x+w+jitter(r*0.2), y+h-r+rnd(2)*r*0.3],
+        [x+w-r+rnd(3)*r*0.3, y+h+jitter(r*0.2)],
+        [x+r+rnd(4)*r*0.3, y+h+jitter(r*0.2)],
+        [x+jitter(r*0.2), y+h-r+rnd(5)*r*0.3],
+        [x+jitter(r*0.2), y+r+rnd(6)*r*0.3],
+        [x+r+rnd(7)*r*0.3, y+jitter(r*0.2)],
+      ];
+      ctx.moveTo(pts[0][0]+jitter(2), pts[0][1]+jitter(2));
+      for (let i=0; i<8; i++) {
+        const next = (i+1)%8;
+        const mx = (pts[i][0]+pts[next][0])/2 + jitter(3);
+        const my = (pts[i][1]+pts[next][1])/2 + jitter(3);
+        ctx.quadraticCurveTo(cps[i][0], cps[i][1], mx, my);
+      }
       ctx.closePath();
     }
 
-    // Coordinate transform
+    function drawStar(cx, cy, r, seed) {
+      const s = seed * 100;
+      ctx.beginPath();
+      for (let i=0; i<5; i++) {
+        const angle = (i * 4 * Math.PI / 5) - Math.PI/2 + Math.sin(s+i)*0.1;
+        const px = cx + Math.cos(angle) * r + jitter(1);
+        const py = cy + Math.sin(angle) * r + jitter(1);
+        if (i===0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
     function toWorld(sx,sy) {
       return {
         x: (sx - innerWidth/2 - cam.x) / cam.z,
@@ -383,7 +463,6 @@
     }
 
     function findNode(wx,wy) {
-      // Check front-to-back (reverse level order)
       const sorted = Array.from(nodes.values()).sort((a,b)=>b.level-a.level);
       for (const n of sorted) {
         if (cam.z < n.minZ) continue;
@@ -392,7 +471,7 @@
       return null;
     }
 
-    // Interaction
+    // Events
     canvas.addEventListener('mousedown', e=>{
       const w = toWorld(e.clientX, e.clientY);
       if (findNode(w.x,w.y)) return;
@@ -405,7 +484,6 @@
       hovered = findNode(w.x, w.y);
       canvas.classList.toggle('cursor-pointer', !!hovered);
       if (hovered !== prev) render();
-
       if (dragging) {
         cam.tx += e.clientX - last.x;
         cam.ty += e.clientY - last.y;
@@ -421,13 +499,7 @@
       const w = toWorld(e.clientX, e.clientY);
       const n = findNode(w.x, w.y);
       if (!n) return;
-
-      // Generate children if not yet
-      if (!n.generated && !n.generating) {
-        generate(n);
-      }
-
-      // Zoom to show this node and its children
+      if (!n.generated && !n.generating) generate(n);
       const targetZ = Math.max(0.5, Math.min(2.2, 0.6 / (n.level + 0.5)));
       cam.tz = targetZ;
       cam.tx = -n.x * targetZ;
@@ -450,7 +522,6 @@
       start();
 
       try {
-        // Step 1: get item labels
         const r1 = await fetch(`${API_BASE}/api/expand`, {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({topic:parent.label, language:'zh'}),
@@ -459,7 +530,6 @@
         const d1 = await r1.json();
         const items = d1.items || [];
 
-        // Create child nodes
         const pos = layout(parent, items.length);
         const childIds = [];
         for (let i=0; i<items.length; i++) {
@@ -474,8 +544,7 @@
         parent.generated = true;
         start();
 
-        // Step 2: concurrent detail loading
-        document.getElementById('loading').querySelector('span').textContent = '加载详情...';
+        document.getElementById('loading').querySelector('span').textContent = '记笔中...';
         await Promise.all(childIds.map(async cid=>{
           const cn = nodes.get(cid);
           try {
@@ -499,7 +568,6 @@
 
       } catch(e) {
         console.error(e);
-        // Fallback
         const mock = [`${parent.label}基础`,`${parent.label}应用`,`${parent.label}进阶`];
         const pos = layout(parent, mock.length);
         mock.forEach((label,i)=>{
@@ -521,7 +589,6 @@
       }
     }
 
-    // Init
     function initRoot(topic) {
       nodes.clear(); edges.length=0;
       const root = new Node('root', topic, 0, 0, null, 0);
@@ -541,8 +608,6 @@
 
     window.addEventListener('resize', render);
     render();
-
-    // Hide hint after 5s
     setTimeout(()=>document.getElementById('hint').classList.add('fade'), 5000);
   </script>
 </body>
